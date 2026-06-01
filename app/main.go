@@ -28,7 +28,7 @@ func main() {
 	resp, err := client.Chat.Completions.New(
 		context.Background(),
 		openai.ChatCompletionNewParams{
-			Model: "qwen3.5:9b",
+			Model: "anthropic/claude-haiku-4.5",
 			Messages: []openai.ChatCompletionMessageParamUnion{
 				{
 					OfUser: &openai.ChatCompletionUserMessageParam{
