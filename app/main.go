@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -67,52 +66,30 @@ func main() {
 	}
 	if len(resp.Choices) == 0 {
 		panic("No choices in response")
-}
-
-	readFileTool, err:= ExtractReadToolCall(resp)
-
-	if err != nil {
-		panic("Error while extracting the tools: " + err.Error())
 	}
 
-	args := ExtractArguments(&readFileTool)
+	if len(resp.Choices) > 0 && len(resp.Choices[0].Message.ToolCalls) > 0 {
+		toolCall := resp.Choices[0].Message.ToolCalls[0]
 
-	fmt.Println("Arguments: " + args)
+		if toolCall.Function.Name == "Read" {
+			var toolArgs ReadArgs
 
-	// var toolArgs ReadArgs
+			err = json.Unmarshal([]byte(toolCall.Function.Arguments), &toolArgs)
 
-	// err = json.Unmarshal([]byte(args), &toolArgs)
-
-	// if err != nil {
-	// 	panic("Error parsing tool arguments: " + err.Error())
-	// }
-
-	// fileContent, err := os.ReadFile(toolArgs.FilePath)
-
-	// if err != nil {
-	// 	panic("Error trying read the file content: " + err.Error())
-	// }
-
-	// fmt.Println(string(fileContent))
-}
-
-func ExtractReadToolCall(resp *openai.ChatCompletion) (openai.ChatCompletionMessageToolCallUnion, error){
-	if len(resp.Choices) != 0 {
-		toolCalls := resp.Choices[0].Message.ToolCalls
-		
-		for _, toolCall := range toolCalls {
-			if toolCall.Function.Name == "Read" {
-				return toolCall, nil
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error parsing args: %v\n", err)
+                os.Exit(1)
 			}
+
+			fileContent, err := os.ReadFile(toolArgs.FilePath)
+            if err != nil {
+                fmt.Fprintf(os.Stderr, "error reading file: %v\n", err)
+                os.Exit(1)
+            }
+
+			fmt.Print(string(fileContent))
 		}
+	} else if len(resp.Choices) > 0 {
+		fmt.Print(resp.Choices[0].Message.Content)
 	}
-
-	return openai.ChatCompletionMessageToolCallUnion{}, errors.New("Tool 'Read' didn't found!")
-}
-
-func ExtractArguments(readFileTool *openai.ChatCompletionMessageToolCallUnion) string {
-	if readFileTool != nil {
-		return readFileTool.Function.JSON.Arguments.Raw()
-	}
-	return ""
 }
