@@ -2,13 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
-
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 )
+
+type ReadArgs struct {
+	FilePath string `json:"file_path"`
+}
 
 func main() {
 	var prompt string
@@ -62,10 +67,50 @@ func main() {
 	}
 	if len(resp.Choices) == 0 {
 		panic("No choices in response")
+}
+
+	readFileTool, err:= ExtractReadToolCall(resp)
+
+	if err != nil {
+		panic("Error while extracting the tools: " + err.Error())
 	}
 
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
-	fmt.Fprintln(os.Stderr, "Logs from your program will appear here!")
+	args := ExtractArguments(&readFileTool)
 
-	fmt.Print(resp.Choices[0].Message.Content)
+	var toolArgs ReadArgs
+
+	err = json.Unmarshal([]byte(args), &toolArgs)
+
+	if err != nil {
+		panic("Error parsing tool arguments: " + err.Error())
+	}
+
+	fileContent, err := os.ReadFile(toolArgs.FilePath)
+
+	if err != nil {
+		panic("Error trying read the file content: " + err.Error())
+	}
+
+	fmt.Println(string(fileContent))
+}
+
+func ExtractReadToolCall(resp *openai.ChatCompletion) (openai.ChatCompletionMessageToolCallUnion, error){
+	if len(resp.Choices) != 0 {
+		toolCalls := resp.Choices[0].Message.ToolCalls
+		
+		for _, toolCall := range toolCalls {
+			if toolCall.Function.Name == "Read" {
+				return toolCall, nil
+			}
+		}
+	}
+
+	return openai.ChatCompletionMessageToolCallUnion{}, errors.New("Tool 'Read' didn't found!")
+}
+
+func ExtractArguments(readFileTool *openai.ChatCompletionMessageToolCallUnion) string {
+	if readFileTool != nil {
+		return readFileTool.Function.JSON.Arguments.Raw()
+	}
+	return ""
 }
