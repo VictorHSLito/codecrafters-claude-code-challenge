@@ -77,21 +77,23 @@ func main() {
 
 	args := ExtractArguments(&readFileTool)
 
-	var toolArgs ReadArgs
+	fmt.Println("Arguments: " + args)
 
-	err = json.Unmarshal([]byte(args), &toolArgs)
+	// var toolArgs ReadArgs
 
-	if err != nil {
-		panic("Error parsing tool arguments: " + err.Error())
-	}
+	// err = json.Unmarshal([]byte(args), &toolArgs)
 
-	fileContent, err := os.ReadFile(toolArgs.FilePath)
+	// if err != nil {
+	// 	panic("Error parsing tool arguments: " + err.Error())
+	// }
 
-	if err != nil {
-		panic("Error trying read the file content: " + err.Error())
-	}
+	// fileContent, err := os.ReadFile(toolArgs.FilePath)
 
-	fmt.Println(string(fileContent))
+	// if err != nil {
+	// 	panic("Error trying read the file content: " + err.Error())
+	// }
+
+	// fmt.Println(string(fileContent))
 }
 
 func ExtractReadToolCall(resp *openai.ChatCompletion) (openai.ChatCompletionMessageToolCallUnion, error){
