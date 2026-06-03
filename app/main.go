@@ -41,7 +41,7 @@ func main() {
 		},
 	})
 
-	for {
+	for i := 0; i < 5; i++ {
 		resp, err := client.Chat.Completions.New(
 			context.Background(),
 			openai.ChatCompletionNewParams{
@@ -127,6 +127,9 @@ func main() {
 			}
 		}
 	}
+
+	fmt.Println("Maximum tool call rounds reached")
+
 }
 
 func ExecuteTool(toolCall *openai.ChatCompletionMessageToolCallUnion) string {
