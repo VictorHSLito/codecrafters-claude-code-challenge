@@ -41,20 +41,12 @@ func main() {
 		},
 	})
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		resp, err := client.Chat.Completions.New(
 			context.Background(),
 			openai.ChatCompletionNewParams{
 				Model: "anthropic/claude-haiku-4.5",
-				Messages: []openai.ChatCompletionMessageParamUnion{
-					{
-						OfUser: &openai.ChatCompletionUserMessageParam{
-							Content: openai.ChatCompletionUserMessageParamContentUnion{
-								OfString: openai.String(prompt),
-							},
-						},
-					},
-				},
+				Messages: messages,
 				Tools: []openai.ChatCompletionToolUnionParam{
 					openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
 						Name:        "Read",
@@ -85,18 +77,17 @@ func main() {
 			os.Exit(0)
 		}
 
-
 		var assistantToolCalls []openai.ChatCompletionMessageToolCallUnionParam
 
-		for _, toolCall := range assistantToolCalls {
+		for _, toolCall := range message.ToolCalls {
 			assistantToolCalls = append(assistantToolCalls, openai.ChatCompletionMessageToolCallUnionParam{
 				OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{
-					ID: *toolCall.GetID(),
+					ID: toolCall.ID,
+					Type: toolCall.AsFunction().Type,
 					Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{
-						Name: toolCall.GetFunction().Name,
-						Arguments: toolCall.GetFunction().Arguments,
+						Name: toolCall.Function.Name,
+						Arguments: toolCall.Function.Arguments,
 					},
-					Type: toolCall.OfFunction.Type,
 				},
 			})
 		}
