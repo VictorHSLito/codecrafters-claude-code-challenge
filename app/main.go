@@ -15,6 +15,11 @@ type ReadArgs struct {
 	FilePath string `json:"file_path"`
 }
 
+type WriteArgs struct {
+	FilePath string `json:"file_path"`
+	Content string `json:"content"`
+}
+
 func main() {
 	var prompt string
 	flag.StringVar(&prompt, "p", "", "Prompt to send to LLM")
@@ -62,6 +67,24 @@ func main() {
 							"required": []string{"file_path"},
 						},
 					}),
+					openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+						Name:       "Write",
+						Description: openai.String("Write content to a file"),
+						Parameters: openai.FunctionParameters{
+							"type": "object",
+							"properties": map[string]any{
+								"file_path": map[string]any{
+									"type": "string",
+									"description": "The path to the file to write to",
+								},
+								"content": map[string]any{
+									"type": "string",
+									"description": "The content to write to the file",
+								},
+							},
+							"required": []string{"file_path", "content"},
+						},
+					}),
 				},
 			},
 		)
@@ -102,19 +125,29 @@ func main() {
 		})
 
 		for _, toolCall := range message.ToolCalls {
-			if toolCall.Function.Name == "Read" {
-				result := ExecuteTool(&toolCall)
+			var result string
+			var executed bool
 
+			if toolCall.Function.Name == "Read" {
+				result = ExecuteReadTool(&toolCall)
+				executed = true
+			}
+
+			if toolCall.Function.Name == "Write" {
+				result = ExecuteWriteTool(&toolCall)
+				executed = true
+			}
+
+			if executed {
 				toolMessage := openai.ChatCompletionMessageParamUnion{
-					OfTool: &openai.ChatCompletionToolMessageParam{
-						ToolCallID: toolCall.ID,
-						Content: openai.ChatCompletionToolMessageParamContentUnion{
+                    OfTool: &openai.ChatCompletionToolMessageParam{
+                        ToolCallID: toolCall.ID,
+                        Content: openai.ChatCompletionToolMessageParamContentUnion{
 							OfString: openai.String(result),
 						},
-					},
-				}
-
-				messages = append(messages, toolMessage)
+                    },
+                }
+                messages = append(messages, toolMessage)
 			}
 		}
 	}
@@ -123,7 +156,7 @@ func main() {
 
 }
 
-func ExecuteTool(toolCall *openai.ChatCompletionMessageToolCallUnion) string {
+func ExecuteReadTool(toolCall *openai.ChatCompletionMessageToolCallUnion) string {
 	if toolCall.Function.Name == "Read" {
 		var toolArgs ReadArgs
 
@@ -143,4 +176,21 @@ func ExecuteTool(toolCall *openai.ChatCompletionMessageToolCallUnion) string {
 	}
 
 	return ""
+}
+
+func ExecuteWriteTool(toolCall *openai.ChatCompletionMessageToolCallUnion) string {
+	var toolArgs WriteArgs
+
+	err := json.Unmarshal([]byte(toolCall.Function.Arguments), &toolArgs)
+
+	if err != nil {
+        return fmt.Sprintf("Error parsing args: %v", err)
+    }
+
+    err = os.WriteFile(toolArgs.FilePath, []byte(toolArgs.Content), 0644)
+    if err != nil {
+        return fmt.Sprintf("Error writing file: %v", err)
+    }
+
+    return "File written successfully"
 }
