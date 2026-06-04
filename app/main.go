@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-
+	"os/exec"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 )
@@ -18,6 +18,10 @@ type ReadArgs struct {
 type WriteArgs struct {
 	FilePath string `json:"file_path"`
 	Content string `json:"content"`
+}
+
+type BashArgs struct {
+	Command string `json:"command"`
 }
 
 func main() {
@@ -85,9 +89,24 @@ func main() {
 							"required": []string{"file_path", "content"},
 						},
 					}),
+					openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+						Name:      "Bash",
+						Description: openai.String("Execute a shell command"),
+						Parameters: openai.FunctionParameters{
+							"type": "object",
+							"properties": map[string]any{
+								"command": map[string]any{
+									"type": "string",
+									"description": "The command to execute",
+								},
+							},
+							"required": []string{"command"},
+						},
+					}),
 				},
 			},
 		)
+
 		if err != nil {
 			fmt.Printf("error %v\n", err)
 			os.Exit(1)
@@ -162,7 +181,7 @@ func ExecuteReadTool(toolCall *openai.ChatCompletionMessageToolCallUnion) string
 
 		err := json.Unmarshal([]byte(toolCall.Function.Arguments), &toolArgs)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error parsing args: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error parsing args: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -193,4 +212,25 @@ func ExecuteWriteTool(toolCall *openai.ChatCompletionMessageToolCallUnion) strin
     }
 
     return "File written successfully"
+}
+
+func ExecuteBashTool(toolCall *openai.ChatCompletionMessageToolCallUnion) string {
+	var toolArgs BashArgs
+
+	err := json.Unmarshal([]byte(toolCall.Function.Arguments), &toolArgs)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error parsing args: %v\n", err)
+		os.Exit(1)
+	}
+
+	cmd := exec.Command("bash", "-c", toolArgs.Command)
+
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return fmt.Sprint("Error executing command: %v", err)
+	}
+
+	return string(output)
 }
