@@ -157,6 +157,11 @@ func main() {
 				executed = true
 			}
 
+			if toolCall.Function.Name == "Bash" {
+				result = ExecuteBashTool(&toolCall)
+				executed = true
+			}
+
 			if executed {
 				toolMessage := openai.ChatCompletionMessageParamUnion{
                     OfTool: &openai.ChatCompletionToolMessageParam{
@@ -229,7 +234,7 @@ func ExecuteBashTool(toolCall *openai.ChatCompletionMessageToolCallUnion) string
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
-		return fmt.Sprint("Error executing command: %v", err)
+		return fmt.Sprintf("Error executing command: %v", err)
 	}
 
 	return string(output)
